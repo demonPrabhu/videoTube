@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "a MERN backend project",
+  "keywords": [
+    "node",
+    "express",
+    "javascript"
+  ],
+  "license": "ISC",
+  "author": "prabhat bhatia",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "prettier": "^3.9.10"
+  }
+}
