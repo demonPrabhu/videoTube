@@ -1,6 +1,6 @@
-import "dotenv/config";
-import { connectDB } from "./db/index.js";
-import { app } from "./app.js";
+import "dotenv/config"; // 1. TURN ON THE POWER IMMEDIATELY
+import { app } from "./app.js"; // 2. Now app.js can securely read environment variables
+import { connectDB } from "./db/index.js"; // 3. Database connection can read MONGODB_URI safely
 
 connectDB()
   .then(() => {

@@ -22,4 +22,10 @@ app.use(express.static("public"));
 // 4. Cookie Parser (Allows server to read and set secure cookies in the user's browser)
 app.use(cookieParser());
 
+// User Router Import
+import userRouter from "./routes/user.routes.js";
+
+// User Router Declaration
+app.use("/api/v1/users", userRouter);
+
 export { app };
