@@ -53,11 +53,21 @@ const userSchema = new Schema(
 );
 
 // 1. Hook to hash password automatically right before saving to DB
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+// userSchema.pre("save", async function (next) {
+//   if (!this.isModified("password")) return next();
 
+//   this.password = await bcrypt.hash(this.password, 10);
+//   next();
+// });
+userSchema.pre("save", async function () {
+  // If the password hasn't changed, stop executing this function right here
+  if (!this.isModified("password")) return;
+
+  // Hash the raw string text and write it back onto the document record
   this.password = await bcrypt.hash(this.password, 10);
-  next();
+
+  // No next() call is needed! Mongoose automatically lets the document save
+  // because this is an async function that has finished executing.
 });
 
 // 2. Custom method to check if the entered password matches the hashed one

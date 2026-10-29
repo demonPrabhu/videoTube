@@ -28,4 +28,20 @@ import userRouter from "./routes/user.routes.js";
 // User Router Declaration
 app.use("/api/v1/users", userRouter);
 
+// Global Custom Error Handling Middleware
+// Express automatically detects this as an error handler because it has exactly 4 parameters (err, req, res, next)
+/*
+app.use((err, req, res, next) => {
+  // Fallback to HTTP 500 (Internal Server Error) if no specific status code was provided
+    const statusCode = err.statusCode || 500;
+   // Send a structured JSON response back to the client
+    return res.status(statusCode).json({
+    success: false,
+    statusCode: statusCode,
+    message: err.message || "Internal Server Error",
+    errors: err.errors || [],
+  });
+});
+*/
+
 export { app };
