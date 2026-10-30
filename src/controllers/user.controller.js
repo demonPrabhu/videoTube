@@ -4,6 +4,30 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
+const generateAccessandRefreshToken = async (user) => {
+  try {
+    const accessToken = user.generateAccessToken();
+
+    const refreshToken = user.generateRefreshToken();
+
+    // Save the token data permanently to your database cluster
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating refresh and access token"
+    );
+  }
+};
+
+const options = {
+  httpOnly: true, // Shields tokens from frontend browser scripting access (Stops XSS)
+  secure: true, // Restricts token transfers purely over encrypted HTTPS channels
+};
+
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
   // validation - not empty
@@ -90,4 +114,67 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, createdUser, "User registered Successfully"));
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  // take details from user -> username, email, password
+  // validate details for not empty
+  // check user exists
+  // validate password
+  // generate access and refresh Token
+  // save refresh token for user in mongo db
+  // send response with token in cookie
+
+  // 1. Take details from user -> request body
+  const { username, email, password } = req.body;
+
+  // 2. Validate details: Ensure password is provided AND either username OR email is present
+  if (!username && !email) {
+    throw new ApiError(400, "Username or email is required to login");
+  }
+  if (!password || password.trim() === "") {
+    throw new ApiError(400, "Password field is required");
+  }
+
+  // 3. Check user exists
+  const user = await User.findOne({
+    $or: [{ email }, { username }],
+  });
+
+  if (!user) {
+    throw new ApiError(404, "User doesn't exists");
+  }
+
+  // 4. Validate password using your schema custom instance method
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Password is not correct");
+  }
+
+  // 5. Generate access and refresh tokens safely
+  const { accessToken, refreshToken } =
+    await generateAccessandRefreshToken(user);
+
+  // Convert the user instance to a plain object and strip sensitive keys in RAM
+  // Convert the live Mongoose tracker instance into a plain memory object structure
+  const loggedInUser = user.toObject();
+
+  // Directly wipe out sensitive private keys out of the response memory stack instantly
+  // Directly erase the keys inside our RAM instantly!
+  delete loggedInUser.password;
+  delete loggedInUser.refreshToken;
+
+  // 6. Return response with token payloads injected securely into client cookies
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "User logged in successfully"
+      )
+    );
+});
+
+export { registerUser, loginUser };
