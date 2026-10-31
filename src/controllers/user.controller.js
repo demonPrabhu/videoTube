@@ -177,4 +177,28 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser, loginUser };
+const logoutUser = asyncHandler(async (req, res) => {
+  // verifyJWT -> req.cookies, token from cookies, find and verify user in db using refresh token
+  // find user in db and clear refresh token for user in db
+  // send response -> delete cookies
+
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, ""));
+});
+
+export { registerUser, loginUser, logoutUser };
