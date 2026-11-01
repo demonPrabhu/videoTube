@@ -317,6 +317,44 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, req.user, "Current User fetched successfully"));
 });
 
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  // take details from frontend
+  // verifyJWT -> gives current user
+  // update details in mongo db
+  // send res with updated user
+
+  // 1. Take details from frontend request text body
+  const { fullName, email } = req.body;
+
+  // 2. Input validation: Ensure the user isn't sending completely empty strings
+  if (!fullName || !email) {
+    throw new ApiError(400, "All fields (Full Name and Email) are required");
+  }
+
+  // 3. Update details in MongoDB using the target ID provided cleanly by verifyJWT
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email: email,
+      },
+    },
+    {
+      new: true, // ⚡ CRITICAL: Tells Mongoose to return the FRESH updated document snapshot
+    }
+  ).select("-password -refreshToken"); // Securely strip out hidden keys before moving to RAM
+
+  if (!user) {
+    throw new ApiError(404, "User account profile update failed");
+  }
+
+  // 4. Send response back to frontend with the updated user data block
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -324,4 +362,5 @@ export {
   refreshAccessToken,
   changeCurrentPassword,
   getCurrentUser,
+  updateAccountDetails,
 };
