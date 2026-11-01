@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessandRefreshToken = async (user) => {
   try {
@@ -201,4 +202,65 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, ""));
 });
 
-export { registerUser, loginUser, logoutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  // frontend -> sends 401 every 1 day after access token expiry
+  // takes refresh token, decrypt it
+  // find user
+  // generate token
+  // res with user object without password, refreshToken
+
+  // 1. Extract the refresh token from cookies or incoming Authorization headers
+  const incomingRefreshToken =
+    req.cookies?.refreshToken ||
+    req.header("Authorization")?.replace("Bearer ", "");
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized request: Refresh token is missing");
+  }
+
+  try {
+    // 2. Cryptographically verify the refresh token signature
+    // Using try-catch as jwtVerify will throw error, so to display custom error message
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    // 3. Find the user in the database
+    const user = await User.findById(decodedToken?.id);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token: User does not exist");
+    }
+
+    // 4. Critical Security Check: Match the incoming token against the one saved in MongoDB
+    // This allows you to invalidate/revoke a token if a user's device is lost or compromised!
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or has been revoked");
+    }
+
+    // 5. Generate a fresh pair of tokens and Update the refresh token database record in RAM and save it to MongoDB
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessandRefreshToken(user);
+
+    // 6. Push new tokens back into secure cookies and return success
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access token refreshed successfully"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(
+      401,
+      error?.message || "Invalid refresh token signature"
+    );
+  }
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
