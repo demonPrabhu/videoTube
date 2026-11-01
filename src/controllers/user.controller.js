@@ -307,10 +307,21 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password updated successfully"));
 });
 
+const getCurrentUser = asyncHandler(async (req, res) => {
+  // verifyJWT -> gives current user
+  // send res of current user
+
+  // The user document is already safely attached to the request by the verifyJWT middleware!
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current User fetched successfully"));
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   refreshAccessToken,
   changeCurrentPassword,
+  getCurrentUser,
 };
