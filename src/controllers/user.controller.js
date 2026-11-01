@@ -263,4 +263,54 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  // verifyJWT -> verify user using accessToken and give user
+  // take old password, new password from frontend
+  // verify old password in mongodb
+  // update new password in db
+  // send res
+
+  // 1. Extract old and new password fields from the incoming request body
+  const { oldPassword, newPassword } = req.body;
+
+  // 2. Basic parameter validation check
+  if (!oldPassword || !newPassword) {
+    throw new ApiError(400, "Both old and new passwords are required");
+  }
+
+  // ⚡ Prod Step: Re-query ONLY the password field using an optimized projection query
+  //   const user = await User.findById(req.user?._id).select("password");
+
+  // 3. Target the active user instance (provided cleanly by verifyJWT)
+  const user = await User.findById(req.user?._id);
+
+  if (!user) {
+    throw new ApiError(404, "User session not found");
+  }
+
+  // 4. Verify that the incoming old password matches the database record
+  // Verify the incoming password against the freshly fetched hash
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new ApiError(400, "Invalid old password");
+  }
+
+  // 5. Update the user document instance value in memory RAM
+  user.password = newPassword;
+
+  // 6. Save back to MongoDB. This triggers your pre-save hook to auto-hash the new password!
+  await user.save({ validateBeforeSave: false });
+
+  // 7. Return clean success package confirmation response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password updated successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+};
