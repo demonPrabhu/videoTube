@@ -441,6 +441,92 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Cover Image image updated successfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  // 1. Extract the channel username directly from the URL route parameters
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "username is missing");
+  }
+
+  // 2. Build the structural aggregation pipeline array map
+  const channel = await User.aggregate([
+    {
+      // Match Phase: Find the user document matching the username parameter case-insensitively
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      // Lookup Phase 1: Join with Subscriptions to find who subscribes to THIS channel
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      // Lookup Phase 2: Join with Subscriptions to find who this channel is subscribed TO
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      // Projection/Add Fields Phase: Calculate array counts and dynamic flags instantly in RAM
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          // Check if the current logged-in viewer's ID exists inside the subscribers array map
+          $cond: {
+            if: {
+              $in: [
+                new mongoose.Types.ObjectId(req.user?._id),
+                "$subscribers.subscriber",
+              ],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      // Cleanup Projection Phase: Strip out massive arrays and sensitive parameters before sending
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  // 3. Handle 404 response edge states cleanly
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exists");
+  }
+
+  // User.aggregate always returns an array wrapper package. Return the first item cleanly!
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel fetched successfully")
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -451,4 +537,5 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateCoverImage,
+  getUserChannelProfile,
 };

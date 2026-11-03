@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
-  // as extra step keeping in trycatch will refract later
+  // as extra step keeping in trycatch will refract later as jwtVerify can throw error
   try {
     // 1. Extract token from either incoming cookies OR the request Authorization header
     const token =
